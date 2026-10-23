@@ -1,6 +1,6 @@
 // Giúp ứng dụng mở được khi không có mạng: lưu sẵn phần chính, tranh nào đã mở thì lưu lại để lần sau dùng offline.
-const CORE = 'to-mau-core-v1', ART = 'to-mau-tranh-v1';
-const FILES = ['./', 'index.html', 'chu-de.js', 'ten-tranh.js', 'con-vat.js', 'nhac.js', 'manifest.json', 'icon-192.png', 'icon-512.png'];
+const CORE = 'to-mau-core-v2', ART = 'to-mau-tranh-v1';
+const FILES = ['./', 'index.html', 'chu-de.js', 'ten-tranh.js', 'con-vat.js', 'nhac.js', 'manifest.json', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CORE).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));

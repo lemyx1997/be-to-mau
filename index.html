@@ -187,6 +187,11 @@
   #toast { position: fixed; left: 50%; top: 40%; transform: translate(-50%,-50%) scale(.6); background: #fff; padding: 24px 40px; border-radius: 32px; font-size: 40px; font-weight: 800; color: var(--accent);
     box-shadow: 0 10px 0 rgba(140,100,20,.2); opacity: 0; transition: .3s; z-index: 91; pointer-events: none; text-align: center; }
   #toast.show { opacity: 1; transform: translate(-50%,-50%) scale(1); }
+  #installBody ol { margin: 6px 0; padding-left: 26px; font-size: 18px; font-weight: 700; line-height: 1.45; }
+  #installBody ol li { margin-bottom: 6px; }
+  #installBody .note { background: var(--cream); border-radius: 16px; padding: 8px 12px; font-size: 15px; font-weight: 700; margin-top: 8px; }
+  #installBody h4 { color: var(--ink); font-size: 18px; }
+  .kbd { display: inline-block; background: #fff; border: 2px solid #e6d6a8; border-radius: 8px; padding: 0 6px; }
 
   /* Màn hình nhỏ (điện thoại, máy tính bảng dọc): công cụ xuống dưới */
   @media (max-width: 820px) {
@@ -220,6 +225,7 @@
   <h1 class="rainbow-text" data-text="Bé Tô Màu Con Vật"></h1>
   <p>524 bức tranh đang chờ bé tô màu!</p>
   <button class="big-btn" id="startBtn">▶ Bắt đầu nào!</button>
+  <button class="pill hidden" id="installBtn0">📲 Cài vào máy</button>
 </section>
 
 <!-- Chọn bé -->
@@ -234,6 +240,7 @@
     <button class="pill hidden" id="homeBtn">⬅ Chủ đề</button>
     <h1 id="galTitle"></h1>
     <button class="pill" id="randomBtn">🎲 Ngẫu nhiên</button>
+    <button class="pill hidden" id="installBtn1">📲 Cài vào máy</button>
     <button class="pill" id="musicBtn1">🎵 Nhạc</button>
     <button class="pill" id="meBtn"><span class="av"></span><span class="nm"></span></button>
   </header>
@@ -362,6 +369,14 @@
       <button class="pill" id="rewardMore">🎲 Tranh khác</button>
       <button class="big-btn" data-close>Tuyệt!</button>
     </div>
+  </div>
+</div>
+
+<!-- Hướng dẫn cài vào máy -->
+<div id="installGuide" class="modal hidden">
+  <div class="box">
+    <h2>📲 Cài vào máy <button class="pill" data-close>✖</button></h2>
+    <div id="installBody"></div>
   </div>
 </div>
 
@@ -1255,6 +1270,55 @@ function confetti() {
 
 // Cài như ứng dụng: chỉ hoạt động khi mở qua địa chỉ web (không phải mở file trực tiếp).
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => {});
+
+// Nút "Cài vào máy": Chrome Android hiện hộp cài ngay; trình duyệt khác thì hiện hướng dẫn phù hợp.
+const UA = navigator.userAgent;
+const isStandalone = matchMedia('(display-mode: fullscreen)').matches || matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+const isIOS = /iPad|iPhone|iPod/.test(UA) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const isAndroid = /Android/i.test(UA);
+const inApp = /Zalo|FBAN|FBAV|FB_IAB|Instagram|Line\/|Messenger|TikTok|wv\)/i.test(UA);
+const isSamsung = /SamsungBrowser/i.test(UA);
+let installEvt = null;
+const installBtns = ['#installBtn0', '#installBtn1'].map(s => $(s));
+function showInstallBtns(on) { installBtns.forEach(b => b.classList.toggle('hidden', !on)); }
+if (!isStandalone && location.protocol.startsWith('http') && (isAndroid || isIOS)) showInstallBtns(true);
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; if (!isStandalone) showInstallBtns(true); });
+window.addEventListener('appinstalled', () => { installEvt = null; showToast('Đã cài xong! 🎉'); openInstallGuide(true); });
+installBtns.forEach(b => b.onclick = async () => {
+  beep(700);
+  if (installEvt) {
+    installEvt.prompt();
+    const r = await installEvt.userChoice.catch(() => null);
+    installEvt = null;
+    if (r && r.outcome === 'accepted') return;
+  }
+  openInstallGuide(false);
+});
+const MISSING_ICON = `<h4>🔎 Máy báo "đã cài" mà không thấy biểu tượng?</h4>
+  <ol>
+    <li>Vuốt mở <b>danh sách tất cả ứng dụng</b> của máy, tìm <b>"Bé Tô Màu"</b>. Ứng dụng thường nằm sẵn ở đó, bấm giữ biểu tượng rồi kéo ra màn hình chính.</li>
+    <li>Máy <b>Xiaomi, Oppo, Vivo, Realme</b> hay chặn tạo biểu tượng: vào <b>Cài đặt → Ứng dụng → Chrome → Quyền</b> (hoặc <i>Quyền khác</i>), bật <b>"Lối tắt trên màn hình chính"</b>. Sau đó mở lại trang này và cài lại.</li>
+    <li>Vẫn không thấy: mở trang này bằng Chrome, bấm <span class="kbd">⋮</span> → nếu có dòng <b>"Mở ứng dụng"</b> nghĩa là đã cài, bấm vào đó để mở.</li>
+  </ol>`;
+function openInstallGuide(justInstalled) {
+  const url = location.href.split('#')[0];
+  let html = '';
+  if (justInstalled) {
+    html = `<p class="note">🎉 Đã cài xong! Biểu tượng bảng màu vàng sẽ có trên màn hình chính hoặc trong danh sách ứng dụng.</p>${isAndroid ? MISSING_ICON : ''}`;
+  } else if (inApp) {
+    html = `<p class="note">Bạn đang mở trong Zalo/Facebook. Trình duyệt bên trong các ứng dụng này <b>không cài được</b>. Hãy mở bằng ${isIOS ? 'Safari' : 'Chrome'} trước nhé.</p>
+      ${isAndroid ? `<div class="actions" style="justify-content:center"><a class="big-btn gold" style="text-decoration:none" href="intent://${url.replace(/^https?:\/\//, '')}#Intent;scheme=https;package=com.android.chrome;end">Mở bằng Chrome</a></div>` : ''}
+      <ol><li>Bấm nút <span class="kbd">⋯</span> hoặc <span class="kbd">⋮</span> ở góc trên.</li><li>Chọn <b>"Mở bằng trình duyệt"</b> / <b>"Mở trong ${isIOS ? 'Safari' : 'Chrome'}"</b>.</li><li>Rồi bấm lại nút <b>📲 Cài vào máy</b>.</li></ol>`;
+  } else if (isIOS) {
+    html = `<ol><li>Dùng trình duyệt <b>Safari</b>.</li><li>Bấm nút <b>Chia sẻ</b> <span class="kbd">⬆️</span> (ô vuông có mũi tên lên).</li><li>Kéo xuống, chọn <b>"Thêm vào MH chính"</b>.</li><li>Bấm <b>Thêm</b>.</li></ol>`;
+  } else if (isSamsung) {
+    html = `<ol><li>Bấm nút <span class="kbd">☰</span> ở góc dưới bên phải.</li><li>Chọn <b>"Thêm trang vào"</b> → <b>"Màn hình chờ"</b>.</li><li>Bấm <b>Thêm</b>.</li></ol>${MISSING_ICON}`;
+  } else {
+    html = `<ol><li>Mở trang này bằng <b>Chrome</b>.</li><li>Bấm nút <span class="kbd">⋮</span> ở góc trên bên phải.</li><li>Chọn <b>"Cài đặt ứng dụng"</b> hoặc <b>"Thêm vào màn hình chính"</b> → <b>Cài đặt</b>.</li></ol>${MISSING_ICON}`;
+  }
+  $('#installBody').innerHTML = html;
+  $('#installGuide').classList.remove('hidden');
+}
 
 buildPanels(); setTool('fill'); updateSound();
 if (kidId && currentKid()) { loadKidData(); updateMeBtn(); } else { kidId = null; favs = new Set(); done = new Set(); badges = {}; }
